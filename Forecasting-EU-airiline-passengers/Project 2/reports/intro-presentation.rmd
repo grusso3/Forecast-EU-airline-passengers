@@ -1,0 +1,220 @@
+---
+title: "Forecasting II Project 2 - Group D"
+author: "Ö. Aydemir, A. Mivelaz, M. Nasser, G. Russo, V. Saudan, A. van Kampen"
+date: "21/04/2021"
+output:
+  slidy_presentation: default
+  ioslides_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(fpp3)
+library(dplyr)
+library(lubridate)
+library(patchwork)
+library(here)
+
+```
+
+
+## Motivation
+
+The COVID crisis impacted the world in an unprecedented way. Nearly all industries shut down at once. This included the then growing aviation industry.
+
+Passenger and freight air transport is a large but complex industry, with activity cycles that depend on multiple parameters but are all heavily correlated with global economics. 
+
+Airline companies typically operate on low profit margins (mainly due to high initial investment costs), tight schedules and fierce competition, making them relatively fragile. Hence, doing accurate and relevant predictions for the industry is crucial for airlines, and is already done extensively. Dealing with the recent development adds to that already challenging task.
+
+Some Key Figures,in Year 2020 for Europe, to show the magnitude of COVID-19 Impact:
+- 70% Drop in airline Passengers, Year-on-Year
+- Drop in profit of USD 26.9 bln for commercial Airlines
+- Turnover of the airline industry in EU28 of EUR 155 bln
+
+## Research questions
+
+- What was expected of  EU airline travel before the COVID cris and what was the seasonality and trend involved?
+- What is the impact of Covid on this trend and is the trend expected to continue the same as pre-crisis era?
+- Looking At individual countries is there any difference in time series and trends? Is the impact the same for across all EU countries?
+- In comparison to US travelers , do we see notable differences between EU traveling time series and US one? Using same model forecasts , are the predictions different?
+
+*Forecasted period undefined and might range until recovery(a few years)*
+On a more technical note, our objective would be to:
+- Decompose and understand the different segments of our time series
+- Use different forecasting models to see the best fit (checking accuracy and errors) and compare to benchmark naive models
+- Attempt to add a fundamental independent variable in our TSLM/ARIMA models to check impact on regression forecasts
+- Conduct an HTS to aggregate our data and reconcile using top-down / bottom-up approaches and check which one fits our data better
+- Compare the accuracy of our models on an aggregate macro level between EU and USA forecasted time series and analyze
+
+**More analysis and studies to be developed as we progress**
+
+## Data sources
+
+We look at the European aviation industry, more specifically at the passenger transporting industry. Data was found using the Eurostats portal (https://ec.europa.eu/eurostat/databrowser/view/AVIA_PAOC__custom_841244/default/table?lang=en - N.B. We downloaded the so-called "Full" dataset which is already partially cleaned and tidied up for the most part, compared to the "Source" dataset). This dataset (we will call it the *EU* dataset for this presentation) will be our main source for our analyses.
+
+We also gathered data about US flights (found on Data.world: https://data.world/makeovermonday/2021w16/workspace/file?filename=US+Monthly+Air+Passengers.csv). This *US* dataset could be used as a comparison with European flights.
+
+## Features
+
+The *EU* full dataset is presented in long format, and contains the following features (we excluded `DATAFLOW`, `unit`, `schedule` and `OBS_FLAG` which contained a single value for all data, making the irrelevant):
+
+- `freq`: the frequency of the observations (`A` = annual; `Q` = quaterly; `M` = monthly)
+- `tra_meas`: the measure done (for instance `PAS_BRD` for "Passengers on board")
+- `tra_cov`: the coverage of the measure (for instance, `INTL` for "International transport")
+- `geo`: the country 2 letter code (`CH` for Switzerland, `AT` for Austria, etc.)
+- `TIME_PERIOD`: either the year, the quarter or the month (depending on `freq`) of the observation
+- `OBS_VALUE`: the measure's value, depending on the previous features
+
+Codelists are available for each feature in separate .csv files (also downloadable via Eurostat).
+
+## EU dataset
+
+```{r, echo = FALSE, fig.align="center"}
+data <- read.csv(here::here("data/estat_avia_paoc_filtered.csv")) %>%
+  select(freq, tra_meas, tra_cov, geo, TIME_PERIOD, OBS_VALUE) %>% 
+  as_tibble
+data
+```
+
+The dataset has 190,104 instances (in long format) of 6 features. As we will see, there is a hierarchical structure which allows us to deal with missing values to a degree.
+
+## Total monthly international transport
+
+```{r, echo = FALSE, fig.align="center"}
+# Select European data
+
+EU.data <- data %>%
+  filter(tra_meas == "PAS_BRD",
+         tra_cov == "INTL",
+         freq == "M",
+         geo == "EU27_2007") %>%
+  as_tibble %>%
+  mutate(TIME_PERIOD = ym(TIME_PERIOD))
+EU.data.ts <- EU.data %>% as_tsibble(index = TIME_PERIOD)
+
+EU.data.ts %>% autoplot(OBS_VALUE / 1e6) + ylab("Millions of passengers") + xlab("Month")
+```
+
+Unsuprisingly, the data seems to show high seasonality until 2020. From that point onwards, there is a huge fall (due to the COVID crisis and global lockdowns) which we will need to address in a way or another.
+
+## European countries
+
+```{r echo = FALSE, fig.align="center"}
+Countries.data <- data %>%
+  filter(tra_meas == "PAS_BRD",
+         tra_cov == "INTL",
+         freq == "M",
+         !(geo == "EU27_2007" | geo == "EU27_2020" | geo == "EU28")) %>% # Filtering the agregates out
+  as_tibble %>%
+  mutate(TIME_PERIOD = ym(TIME_PERIOD)) %>%
+  as_tsibble(key = geo, index = TIME_PERIOD)
+
+Countries.data %>% ggplot(aes(x = TIME_PERIOD, y = OBS_VALUE/1e6)) +
+  geom_line() +
+  facet_wrap(facets = ~geo, scales = "free_y") +
+  theme(axis.text.y = element_blank(), axis.text.x = element_blank()) +
+  ylab("Millions of passenger per month") + xlab("")
+```
+
+
+## Coverages and time-periods
+
+```{r, echo = FALSE, fig.align="center"}
+# Code by Özgür
+
+Annual <- as_tibble(data) %>% filter(freq == "A") %>%
+  mutate(TIME_PERIOD = as.Date(TIME_PERIOD, format= "%Y")) %>%
+  group_by(tra_cov) %>% 
+  as_tsibble(index = TIME_PERIOD, key = c(geo, tra_meas,tra_cov,freq))%>%
+  summarise(OBS_VALUE = sum(OBS_VALUE))
+
+
+
+p1<- Annual %>% autoplot(OBS_VALUE / 1e9, show.legend = TRUE) + xlab("Annual data") + ylab("Billions of passengers")
+
+
+## Monthly
+
+Monthly <-as_tibble(data) %>% filter(freq == "M") %>%
+  mutate(TIME_PERIOD = ym(TIME_PERIOD)) %>%
+  as_tsibble(index = TIME_PERIOD, key = c(geo, tra_meas,tra_cov,freq))%>%
+  group_by(tra_cov) %>% summarise(OBS_VALUE = sum(OBS_VALUE))
+
+p2<- Monthly %>% autoplot(OBS_VALUE/1e9, show.legend = FALSE) + xlab("Monthly data") + ylab("")
+
+
+## Quarter
+
+Quarter <-as_tibble(data) %>% filter(freq == "Q") %>%
+  mutate(TIME_PERIOD = yearquarter(TIME_PERIOD)) %>%
+  as_tsibble(index = TIME_PERIOD, key = c(geo, tra_meas,tra_cov,freq))%>%
+  group_by(tra_cov) %>% summarise(OBS_VALUE = sum(OBS_VALUE))
+
+p3<- Quarter %>% autoplot(OBS_VALUE/1e9, show.legend = FALSE) + xlab("Quarterly data") + ylab("")
+
+plot <- (p3 / p2) | p1 
+plot
+```
+
+We see that international travel is the largest part of the data. Seasonality is generally high. We will need to investigate the changes in trend that most likely are due to additional data being gathered rather than actual increase in passengers.
+
+## Missing data and Switzerlands' annual values
+
+```{r, echo = FALSE, fig.align="center"}
+# Select swiss (international) data only
+
+CH.data <- data %>% 
+  filter(tra_meas == "PAS_BRD", # passenger on board
+         tra_cov == "INTL", # International transport
+         geo == "CH") %>%  # Switzerland
+  as_tibble
+
+# Monthly data in Switzerland
+
+CH.Monthly <- CH.data %>% filter(freq == "M") %>% # select monthly data
+  mutate(TIME_PERIOD = ym(TIME_PERIOD)) %>% # adding a day (the first one) for each month
+  as_tsibble(index = TIME_PERIOD)
+
+# Annual data in Switzerland
+
+CH.Annual <- CH.data %>% filter(freq == "A") %>% # select annual data
+  mutate(TIME_PERIOD = as.Date(TIME_PERIOD, format = "%Y")) %>% # change the format to be usable
+  as_tsibble(index = TIME_PERIOD)
+
+# Crate annual data from monthly data and deal with missing value
+
+CH.Annual.monthly <- as_tibble(CH.Monthly) %>%
+  mutate(YEARm = year(TIME_PERIOD)) %>% # take only the year of the time period
+  select(YEARm, OBS_VALUE) %>% 
+  group_by(YEARm) %>%
+  summarize(MONTHLY = sum(OBS_VALUE)) %>% # compute the sum of data with the same year
+  as_tsibble(index = YEARm) %>%
+  fill_gaps() # deal with missing value
+
+# Transform the annual data to be comparable with the other
+
+CH.Annual.original <- CH.Annual %>%
+  transmute(YEARLY = OBS_VALUE)
+
+# Merge the both datasets
+
+CH.Annual.comparison <- CH.Annual.original %>% cbind(CH.Annual.monthly) %>%
+  as_tsibble(index = YEARm)
+```
+
+```{r, echo = FALSE, fig.align="center"}
+
+# Plot the annual/annual.monthly in a single plot
+# blue line for monthly data
+# red points for the yearly data
+
+CH.Annual.comparison %>%
+  ggplot(aes(x = YEARm)) + 
+  geom_line(aes(y = MONTHLY / 1e6), col = "blue") + 
+  geom_point(aes(y = YEARLY / 1e6), col = "red") +
+  ylab("Millions of passengers per year") + xlab("Year")
+
+```
+
+Monthly observations (i.e. `freq = "M"`), aggregated by year is shown as the blue line. Yearly observations (i.e. `freq = "A"`) is shown as red dots.
