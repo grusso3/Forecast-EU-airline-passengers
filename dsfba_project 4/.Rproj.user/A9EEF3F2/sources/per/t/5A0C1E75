@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1587490167272.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2280579199",
+    "id" : "5A0C1E75",
+    "lastKnownWriteTime" : 1587490229,
+    "last_content_update" : 1587490229228,
+    "path" : "~/Dropbox/github/dsfba_2020/static/skeletons/dsfba_homework2_skeleton/report/hw2_ex2.Rmd",
+    "project_path" : "report/hw2_ex2.Rmd",
+    "properties" : {
+        "cursorPosition" : "72,198",
+        "scrollLine" : "50"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

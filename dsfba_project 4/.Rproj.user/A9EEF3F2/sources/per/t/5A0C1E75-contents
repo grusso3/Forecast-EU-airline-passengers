@@ -1,0 +1,95 @@
+## Exercise 2: Temperature evolution in the 20th and 21th centuries
+
+For this exercise, you will use temperature data provided by [Berekeley Earth](http://berkeleyearth.org/data/):
+
+```{r, warning=FALSE, message=FALSE}
+temperature_data <- read_csv(file = here::here("data/temperature_data.csv"))
+```
+
+More specifically, you will use time series of average monthly air temperatures over land in every country between 1743 and today.
+The dataset contains `r nrow(temperature_data)` observations and `r ncol(temperature_data)` variables (`r names(temperature_data)`).
+
+### A note on time series
+
+A time series is a series of data points indexed by (a specific) time. 
+For example, monthly time series are series with monthly data points. Such series can (often) be decomposed into three main components: a trend, which reflects the long-term behaviour of the series (e.g. a series has an upward trend if its values increase over time); a seasonal pattern, when some specific behaviour appear every x days/months/years (e.g. for sales data over time, you might have a seasonal pattern in December when people are making their Christmas presents); and a remaining pattern, not captured by the previous components. 
+
+Formally, if $y_t$ is the observation at time $t$, one can write $y_t=T_t + S_t + R_t$ where $T_t$ corresponds to the trend at time $t$, $S_t$ corresponds to the seasonality at time $t$ and $R_t$ to the remaining pattern. 
+
+In this exercise, you will analyze time series and try to describe their features by building a simple model for the monthly average temperature of a single time series, and check your model particularities and the captured effects (or pattern). Remember to look at the residuals is often useful to asses whether or not the model captures the important features of the data.
+
+Whenever you explore a time-series (whether in EDA or using a model), emphasize the description of:
+
+* the trend,
+* the seasonal patterns,
+* the residuals (if you use a model).
+
+### Wrangling and exploratory data analysis
+
+__2.a__ Add two column corresponding to the year and month. 
+Encode month as a factor and make sure that the factor is properly ordered 
+(i.e., January first an December last).
+Furthermore:
+
+* Filter you data to focus on data from 1900 onwards.
+* Remove countries without any data over this period.
+
+```{r}
+## your code goes here
+```
+
+__2.b__ Provide a high level description of the country and region variables. In particular, your answer must provide (and summarise) all the important information about these two variables for someone who would not have access to the data. 
+You can use either words, or tables, or figures, or a bit of each.
+
+```{r}
+## your code goes here
+```
+
+__2.c__ Produce a worlwide map of the temperature in March 2010, as well as another map 
+with the differences in temperatures between March 2010 and March 1900, and describe what you see.
+
+Hint: ggplot2 includes two helpful command for this part: `map_data()` to retrieve a map and `geom_map()` to draw a map on a plot. Use `expand_limits` to make sure you display the whole map of the world.
+
+```{r}
+## your code goes here
+```
+
+__2.d__ Plot the evolution of the average, minimal, and maximal yearly temperature in each country/region/overall and describe what you see.
+
+```{r}
+## your code goes here
+```
+
+### Modeling the temperature in Switzerland
+
+In the following, don't forget to use broom's `tidy()` and knitr's `kable()` commands to format and display nicely the results of your linear regressions.
+
+__2.e__ Plot the evolution of the yearly (average, maximal and minimal), as well as monthly temperature in Swizerland and describe what you see.
+
+```{r}
+## your code goes here
+```
+
+__2.f__ Suppose that you did not plot previous charts and, therefore, you fit a dull model, for which you will ignore the yearly increase (call it `model_monthly`) for the temperature in Switzerland. Try to interpret the estimates of the coefficients.
+
+```{r}
+## your code goes here
+```
+
+__2.g__ Display the predictions and residuals of `model_monthly`, and describe what you see qualitatively.
+
+```{r}
+## your code goes here
+```
+
+__2.h__ Improve your model by including the effect of the year of observation (you can call it `model_better`). Try to interpret the estimates of the coefficients.
+
+```{r}
+## your code goes here
+```
+
+__2.i__ Display the predictions and residuals of `model_better`, and describe what you see qualitatively.
+
+```{r}
+## your code goes here
+```
