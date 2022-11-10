@@ -1,5 +1,0 @@
-library(tidyverse)
-
-abalone <- read_csv("data/abalone.csv")
-
-source("scripts/setup.R")
